@@ -78,8 +78,14 @@ contract RPS is Ownable, ReentrancyGuard {
      * @param _amount Amount of player betted.
      */
     function bet(uint256 _number, uint256 _amount) external unLocked {
-        require(betInfos[msg.sender].amount == 0, "RockPaperScissors: Already betted");
-        require(0 <= _number && _number < 3, "RockPaperScissors: Number out of range");
+        require(
+            betInfos[msg.sender].amount == 0,
+            "RockPaperScissors: Already betted"
+        );
+        require(
+            0 <= _number && _number < 3,
+            "RockPaperScissors: Number out of range"
+        );
         require(
             GBTS.balanceOf(msg.sender) >= _amount,
             "RockPaperScissors: Caller has not enough balance"
@@ -126,37 +132,30 @@ contract RPS is Ownable, ReentrancyGuard {
         emit VerifiedGameNumber(newRandomNumber, gameNumber, gameId);
 
         BetInfo storage betInfo = betInfos[msg.sender];
-        
-        if (gameNumber == 0) {//Win
-            uint256 amountToSend = (betInfo.amount * 244)/100;
-            betInfo.amount = 0;
-            ULP.sendPrize(
-                msg.sender,
-                amountToSend
-            );
+
+        if (gameNumber == 0) {
+            //Win
+            uint256 amountToSend = (betInfo.amount * 244) / 100;
+
+            ULP.sendPrize(msg.sender, amountToSend);
 
             paidGBTS += amountToSend;
 
-
             emit BetFinished(msg.sender, "Win");
+        } else if (gameNumber == 1) {
+            //Draw
+            uint256 amountToSend = betInfo.amount / 2;
 
-        } else if (gameNumber == 1) {//Draw
-
-            uint256 amountToSend = betInfo.amount/2;
-            betInfo.amount = 0;
-            ULP.sendPrize(
-                msg.sender,
-                amountToSend
-            );
+            ULP.sendPrize(msg.sender, amountToSend);
 
             paidGBTS += amountToSend;
 
             emit BetFinished(msg.sender, "Draw");
-
-        } else {//Loss
-            BetInfo.amount = 0;
+        } else {
+            //Loss
             emit BetFinished(msg.sender, "Lost");
         }
+        betInfo.amount = 0;
     }
 
     /**
@@ -208,5 +207,4 @@ contract RPS is Ownable, ReentrancyGuard {
 
         isLocked = false;
     }
-
 }
