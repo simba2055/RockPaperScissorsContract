@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 
 import "@chainlink/contracts/src/v0.8/dev/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";

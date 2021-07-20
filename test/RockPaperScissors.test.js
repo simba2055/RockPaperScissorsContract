@@ -1,11 +1,11 @@
 const GBTS = artifacts.require("GBTS");
 const ULP = artifacts.require("UnifiedLiquidityPool");
-const RPS = artifacts.require("RPS");
+const RPS = artifacts.require("RockPaperScissors");
 const RNG = artifacts.require("RandomNumberConsumer");
 const { assert } = require("chai");
 const { BN } = require("web3-utils");
 
-contract("RPS", (accounts) => {
+contract("RockPaperScissors", (accounts) => {
     let gbts_contract, ulp_contract, RPS_contract, rng_contract;
 
     before(async () => {
@@ -43,15 +43,15 @@ contract("RPS", (accounts) => {
             RPS_contract = instance;
         });
 
-        await gbts_contract.approve(ulp_contract.address, new BN('1000000000000000000000'), { from: accounts[0] }); // 1000GBTS
+        await gbts_contract.approve(ulp_contract.address, new BN('1000000000000000000000'), { from: accounts[0] }); // 1000 GBTS
 
         await ulp_contract.startStaking(
             new BN('1000000000000000000000'), //1000 GBTS
             { from: accounts[0] }
         );
 
-        await gbts_contract.transfer(accounts[1], new BN('1000000000000000000000'), { from: accounts[0] }); // Win Account 1000GBTS
-        await gbts_contract.transfer(accounts[2], new BN('1000000000000000000000'), { from: accounts[0] }); // Lose Account 1000GBTS
+        await gbts_contract.transfer(accounts[1], new BN('1000000000000000000000'), { from: accounts[0] }); // Win Account 1000 GBTS
+        await gbts_contract.transfer(accounts[2], new BN('1000000000000000000000'), { from: accounts[0] }); // Lose Account 1000 GBTS
 
         await ulp_contract.changeGameApproval(RPS_contract.address, true, { from: accounts[0] });
         await rng_contract.setULPAddress(ulp_contract.address);
@@ -73,7 +73,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Game is locked',
+                'RockPaperScissors: Game is locked',
             )
         });
 
@@ -92,7 +92,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Caller has not enough balance',
+                'RockPaperScissors: Caller has not enough balance',
             )
         });
 
@@ -117,7 +117,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Already betted',
+                'RockPaperScissors: Already betted',
             )
         });
 
@@ -135,7 +135,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Number out of range',
+                'RockPaperScissors: Number out of range',
             )
         });
 
@@ -160,7 +160,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Game is locked',
+                'RockPaperScissors: Game is locked',
             )
         });
 
@@ -176,7 +176,7 @@ contract("RPS", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'RPS: Cannot play without betting',
+                'RockPaperScissors: Cannot play without betting',
             )
         });
 

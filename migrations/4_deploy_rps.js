@@ -1,6 +1,6 @@
 const UnifiedLiquidityPool = artifacts.require("UnifiedLiquidityPool");
 const GBTS = artifacts.require("GBTS");
-const DiceRoll = artifacts.require('DiceRoll');
+const RockPaperScissors = artifacts.require('RockPaperScissors');
 
 module.exports = async function (deployer) {
 
@@ -8,7 +8,7 @@ module.exports = async function (deployer) {
     const GBTSInstance = await GBTS.deployed();
 
     await deployer.deploy(
-        DiceRoll,
+        RockPaperScissors,
         UnifiedLiquidityPoolInstance.address,
         GBTSInstance.address,
         "0xd9FFdb71EbE7496cC440152d43986Aae0AB76665",

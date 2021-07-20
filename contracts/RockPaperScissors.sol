@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -91,13 +91,13 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
             "RockPaperScissors: Caller has not enough balance"
         );
 
-        uint256 multiplier = 244;
-        uint256 winnings = (_amount * multiplier) / 100;
+        // uint256 multiplier = 244;
+        // uint256 winnings = (_amount * multiplier) / 100;
 
-        require(
-            checkBetAmount(winnings, _amount),
-            "RockPaperScissors: Bet amount is out of range"
-        );
+        // require(
+        //     checkBetAmount(winnings, _amount),
+        //     "RockPaperScissors: Bet amount is out of range"
+        // );
 
         require(
             GBTS.transferFrom(msg.sender, address(ULP), _amount),
@@ -156,8 +156,8 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
             emit BetFinished(msg.sender, "Win");
         } else {
-            //Loss
-            emit BetFinished(msg.sender, "Lost");
+            //Lose
+            emit BetFinished(msg.sender, "Lose");
         }
         betInfo.amount = 0;
     }
