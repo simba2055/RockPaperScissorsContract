@@ -10,7 +10,7 @@ import "./interfaces/IAggregator.sol";
 /**
  * @title Rock Paper Scissors Contract
  */
-contract RPS is Ownable, ReentrancyGuard {
+contract RockPaperScissors is Ownable, ReentrancyGuard {
     IUnifiedLiquidityPool public ULP;
     IERC20 public GBTS;
     IAggregator public LinkUSDT;
@@ -127,22 +127,13 @@ contract RPS is Ownable, ReentrancyGuard {
 
         uint256 gameNumber = uint256(
             keccak256(abi.encode(newRandomNumber, address(msg.sender), gameId))
-        ) % 3;
+        ) % 3; // 0: Rock, 1: Paper, 2: Scissors
 
         emit VerifiedGameNumber(newRandomNumber, gameNumber, gameId);
 
         BetInfo storage betInfo = betInfos[msg.sender];
 
-        if (gameNumber == 0) {
-            //Win
-            uint256 amountToSend = (betInfo.amount * 244) / 100;
-
-            ULP.sendPrize(msg.sender, amountToSend);
-
-            paidGBTS += amountToSend;
-
-            emit BetFinished(msg.sender, "Win");
-        } else if (gameNumber == 1) {
+        if (gameNumber == betInfo.number) {
             //Draw
             uint256 amountToSend = betInfo.amount / 2;
 
@@ -151,6 +142,19 @@ contract RPS is Ownable, ReentrancyGuard {
             paidGBTS += amountToSend;
 
             emit BetFinished(msg.sender, "Draw");
+        } else if (
+            (gameNumber == 0 && betInfo.number == 1) ||
+            (gameNumber == 1 && betInfo.number == 2) ||
+            (gameNumber == 2 && betInfo.number == 0)
+        ) {
+            //Win
+            uint256 amountToSend = (betInfo.amount * 244) / 100;
+
+            ULP.sendPrize(msg.sender, amountToSend);
+
+            paidGBTS += amountToSend;
+
+            emit BetFinished(msg.sender, "Win");
         } else {
             //Loss
             emit BetFinished(msg.sender, "Lost");

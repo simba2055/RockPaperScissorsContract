@@ -1,12 +1,12 @@
 const GBTS = artifacts.require("GBTS");
 const ULP = artifacts.require("UnifiedLiquidityPool");
-const DiceRoll = artifacts.require("DiceRoll");
+const RPS = artifacts.require("RPS");
 const RNG = artifacts.require("RandomNumberConsumer");
 const { assert } = require("chai");
 const { BN } = require("web3-utils");
 
-contract("DiceRoll", (accounts) => {
-    let gbts_contract, ulp_contract, diceRoll_contract, rng_contract;
+contract("RPS", (accounts) => {
+    let gbts_contract, ulp_contract, RPS_contract, rng_contract;
 
     before(async () => {
         await GBTS.new(
@@ -33,14 +33,14 @@ contract("DiceRoll", (accounts) => {
             ulp_contract = instance;
         });
 
-        await DiceRoll.new(
+        await RPS.new(
             ulp_contract.address,
             gbts_contract.address,
             "0xb77fa460604b9C6435A235D057F7D319AC83cb53",
             "0xd9FFdb71EbE7496cC440152d43986Aae0AB76665",
             { from: accounts[0] }
         ).then((instance) => {
-            diceRoll_contract = instance;
+            RPS_contract = instance;
         });
 
         await gbts_contract.approve(ulp_contract.address, new BN('1000000000000000000000'), { from: accounts[0] }); // 1000GBTS
@@ -53,16 +53,16 @@ contract("DiceRoll", (accounts) => {
         await gbts_contract.transfer(accounts[1], new BN('1000000000000000000000'), { from: accounts[0] }); // Win Account 1000GBTS
         await gbts_contract.transfer(accounts[2], new BN('1000000000000000000000'), { from: accounts[0] }); // Lose Account 1000GBTS
 
-        await ulp_contract.changeGameApproval(diceRoll_contract.address, true, { from: accounts[0] });
+        await ulp_contract.changeGameApproval(RPS_contract.address, true, { from: accounts[0] });
         await rng_contract.setULPAddress(ulp_contract.address);
     });
 
     describe("Bet", () => {
         it("Betting is not working with locked", async () => {
-            await diceRoll_contract.lock({ from: accounts[0] });
+            await RPS_contract.lock({ from: accounts[0] });
             let thrownError;
             try {
-                await diceRoll_contract.bet(
+                await RPS_contract.bet(
                     40,
                     new BN('10000000000000000000000'), // 10000GBTS
                     { from: accounts[1] }
@@ -73,15 +73,15 @@ contract("DiceRoll", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Game is locked',
+                'RPS: Game is locked',
             )
         });
 
         it("Betting is not working with insuffcient balance", async () => {
-            await diceRoll_contract.unLock({ from: accounts[0] });
+            await RPS_contract.unLock({ from: accounts[0] });
             let thrownError;
             try {
-                await diceRoll_contract.bet(
+                await RPS_contract.bet(
                     40,
                     new BN('10000000000000000000000'), // 10000GBTS
                     { from: accounts[1] }
@@ -92,21 +92,21 @@ contract("DiceRoll", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Caller has not enough balance',
+                'RPS: Caller has not enough balance',
             )
         });
 
 
         it("First player betting is working", async () => {
-            await gbts_contract.approve(diceRoll_contract.address, new BN('1000000000000000000000'), { from: accounts[1] });
-            await diceRoll_contract.bet(40, new BN('100000000000000000000'), { from: accounts[1] }); // Bet Number: 40, Bet Amount: 100GBTS
+            await gbts_contract.approve(RPS_contract.address, new BN('1000000000000000000000'), { from: accounts[1] });
+            await RPS_contract.bet(40, new BN('100000000000000000000'), { from: accounts[1] }); // Bet Number: 40, Bet Amount: 100GBTS
             assert.equal(new BN(await gbts_contract.balanceOf(ulp_contract.address)).toString(), new BN('1100000000000000000000').toString());
         });
 
         it("Player already betted", async () => {
             let thrownError;
             try {
-                await diceRoll_contract.bet(
+                await RPS_contract.bet(
                     40,
                     new BN('100000000000000000000'),
                     { from: accounts[1] }
@@ -117,14 +117,14 @@ contract("DiceRoll", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Already betted',
+                'RPS: Already betted',
             )
         });
 
         it("Betting is not working with number out of range", async () => {
             let thrownError;
             try {
-                await diceRoll_contract.bet(
+                await RPS_contract.bet(
                     51,
                     new BN('100000000000000000000'),
                     { from: accounts[2] }
@@ -135,13 +135,13 @@ contract("DiceRoll", (accounts) => {
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Number out of range',
+                'RPS: Number out of range',
             )
         });
 
         it("Second player betting is working", async () => {
-            await gbts_contract.approve(diceRoll_contract.address, new BN('100000000000000000000'), { from: accounts[2] });
-            await diceRoll_contract.bet(20, new BN('100000000000000000000'), { from: accounts[2] }); // Bet Number: 20, Bet Amount: 100GBTS
+            await gbts_contract.approve(RPS_contract.address, new BN('100000000000000000000'), { from: accounts[2] });
+            await RPS_contract.bet(20, new BN('100000000000000000000'), { from: accounts[2] }); // Bet Number: 20, Bet Amount: 100GBTS
             assert.equal(new BN(await gbts_contract.balanceOf(ulp_contract.address)).toString(), new BN('1200000000000000000000').toString());
         });
     });
@@ -149,44 +149,44 @@ contract("DiceRoll", (accounts) => {
     describe("Play", () => {
         it("Play is not working with locked", async () => {
 
-            await diceRoll_contract.lock({ from: accounts[0] });
+            await RPS_contract.lock({ from: accounts[0] });
             let thrownError;
 
             try {
-                await diceRoll_contract.play({ from: accounts[1] });
+                await RPS_contract.play({ from: accounts[1] });
             } catch (error) {
                 thrownError = error;
             }
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Game is locked',
+                'RPS: Game is locked',
             )
         });
 
         it("Play is not working without betting", async () => {
-            await diceRoll_contract.unLock({ from: accounts[0] });
+            await RPS_contract.unLock({ from: accounts[0] });
             let thrownError;
 
             try {
-                await diceRoll_contract.play({ from: accounts[3] });
+                await RPS_contract.play({ from: accounts[3] });
             } catch (error) {
                 thrownError = error;
             }
 
             assert.include(
                 thrownError.message,
-                'DiceRoll: Cannot play without betting',
+                'RPS: Cannot play without betting',
             )
         });
 
         it("First player wins", async () => {
-            await diceRoll_contract.play({ from: accounts[1] });
+            await RPS_contract.play({ from: accounts[1] });
             assert.equal(new BN(await gbts_contract.balanceOf(ulp_contract.address)).toString(), new BN('955000000000000000000').toString());
         });
 
         it("Second player loses", async () => {
-            await diceRoll_contract.play({ from: accounts[2] });
+            await RPS_contract.play({ from: accounts[2] });
             assert.equal(new BN(await gbts_contract.balanceOf(ulp_contract.address)).toString(), new BN('955000000000000000000').toString());
         });
 
