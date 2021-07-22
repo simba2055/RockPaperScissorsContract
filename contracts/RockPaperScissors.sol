@@ -91,13 +91,13 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
             "RockPaperScissors: Caller has not enough balance"
         );
 
-        // uint256 multiplier = 244;
-        // uint256 winnings = (_amount * multiplier) / 100;
+        uint256 multiplier = 244;
+        uint256 winnings = (_amount * multiplier) / 100;
 
-        // require(
-        //     checkBetAmount(winnings, _amount),
-        //     "RockPaperScissors: Bet amount is out of range"
-        // );
+        require(
+            checkBetAmount(winnings, _amount),
+            "RockPaperScissors: Bet amount is out of range"
+        );
 
         require(
             GBTS.transferFrom(msg.sender, address(ULP), _amount),
