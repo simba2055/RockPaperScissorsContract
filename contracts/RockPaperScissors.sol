@@ -25,8 +25,6 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     uint256 public betGBTS;
     uint256 public paidGBTS;
 
-    bool public isLocked;
-
     uint256 public vrfCost = 10000; // 0.0001 Link
 
     struct BetInfo {
@@ -48,11 +46,6 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
     /// @notice Event emitted when game number generated.
     event VerifiedGameNumber(uint256 vrf, uint256 gameNumber, uint256 gameId);
-
-    modifier unLocked() {
-        require(isLocked == false, "RockPaperScissors: Game is locked");
-        _;
-    }
 
     /**
      * @dev Constructor function
@@ -80,7 +73,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
      * @param _number Tracks Player Selection for UI
      * @param _amount Amount of player betted.
      */
-    function bet(uint256 _number, uint256 _amount) external unLocked {
+    function bet(uint256 _number, uint256 _amount) external {
         require(
             betInfos[msg.sender].amount == 0,
             "RockPaperScissors: Already betted"
@@ -115,7 +108,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     /**
      * @dev External function for calculate betting win or lose.
      */
-    function play() external nonReentrant unLocked {
+    function play() external nonReentrant {
         require(
             betInfos[msg.sender].amount != 0,
             "RockPaperScissors: Cannot play without betting"
@@ -187,28 +180,5 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     {
         return (GBTS.balanceOf(address(ULP)) / 100 >= _winnings &&
             _betAmount >= minBetAmount());
-    }
-
-    /**
-     * @dev External function for lock the game. This function is called by owner only.
-     */
-    function lock() external unLocked onlyOwner {
-        _lock();
-    }
-
-    /**
-     * @dev Private function for lock the game.
-     */
-    function _lock() private {
-        isLocked = true;
-    }
-
-    /**
-     * @dev External function for unlock the game. This function is called by owner only.
-     */
-    function unLock() external onlyOwner {
-        require(isLocked == true);
-
-        isLocked = false;
     }
 }
