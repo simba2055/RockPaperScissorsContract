@@ -3,6 +3,7 @@ pragma solidity ^0.8.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IUnifiedLiquidityPool.sol";
 import "./interfaces/IAggregator.sol";
@@ -11,6 +12,8 @@ import "./interfaces/IAggregator.sol";
  * @title Rock Paper Scissors Contract
  */
 contract RockPaperScissors is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+    
     IUnifiedLiquidityPool public ULP;
     IERC20 public GBTS;
     IAggregator public LinkUSDT;
@@ -99,10 +102,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
             "RockPaperScissors: Bet amount is out of range"
         );
 
-        require(
-            GBTS.transferFrom(msg.sender, address(ULP), _amount),
-            "RockPaperScissors: GBTS transfer failed"
-        );
+        GBTS.safeTransferFrom(msg.sender, address(ULP), _amount);
 
         betInfos[msg.sender].number = _number;
         betInfos[msg.sender].amount = _amount;
