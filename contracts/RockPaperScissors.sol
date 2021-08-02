@@ -30,7 +30,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     struct BetInfo {
         uint256 number;
         uint256 amount;
-        uint256 gameRandomNumber;
+        bytes32 requestId;
     }
 
     mapping(address => BetInfo) private betInfos;
@@ -99,7 +99,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
         betInfos[msg.sender].number = _number;
         betInfos[msg.sender].amount = _amount;
-        betInfos[msg.sender].gameRandomNumber = ULP.getRandomNumber();
+        betInfos[msg.sender].requestId = ULP.requestRandomNumber();
         betGBTS += _amount;
 
         emit BetStarted(msg.sender, _number, _amount);
@@ -114,8 +114,8 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
             "RockPaperScissors: Cannot play without betting"
         );
 
-        uint256 newRandomNumber = ULP.getNewRandomNumber(
-            betInfos[msg.sender].gameRandomNumber
+        uint256 newRandomNumber = ULP.getVerifiedRandomNumber(
+            betInfos[msg.sender].requestId
         );
 
         uint256 gameNumber = uint256(
