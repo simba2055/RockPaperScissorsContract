@@ -114,15 +114,15 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
             "RockPaperScissors: Cannot play without betting"
         );
 
-        uint256 newRandomNumber = ULP.getVerifiedRandomNumber(
+        uint256 randomNumber = ULP.getVerifiedRandomNumber(
             betInfos[msg.sender].requestId
         );
 
         uint256 gameNumber = uint256(
-            keccak256(abi.encode(newRandomNumber, address(msg.sender), gameId))
+            keccak256(abi.encode(randomNumber, address(msg.sender), gameId))
         ) % 3; // 0: Rock, 1: Paper, 2: Scissors
 
-        emit VerifiedGameNumber(newRandomNumber, gameNumber, gameId);
+        emit VerifiedGameNumber(randomNumber, gameNumber, gameId);
 
         BetInfo storage betInfo = betInfos[msg.sender];
 
