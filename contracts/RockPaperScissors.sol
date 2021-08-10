@@ -13,7 +13,7 @@ import "./interfaces/IAggregator.sol";
  */
 contract RockPaperScissors is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
-    
+
     IUnifiedLiquidityPool public ULP;
     IERC20 public GBTS;
     IAggregator public LinkUSDT;
