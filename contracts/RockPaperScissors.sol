@@ -5,22 +5,38 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "./interfaces/IUnifiedLiquidityPool.sol";
-import "./interfaces/IAggregator.sol";
+import "./interfaces/IGembitesProxy.sol";
 
 /**
  * @title Rock Paper Scissors Contract
  */
 contract RockPaperScissors is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using Address for address;
+
+    /// @notice Event emitted only on construction.
+    event RockPaperScissorsDeployed();
+
+    /// @notice Event emitted when player start the betting.
+    event BetStarted(address indexed player, uint256 number, uint256 amount);
+
+    /// @notice Event emitted when player finish the betting.
+    event BetFinished(address indexed player, string result);
+
+    /// @notice Event emitted when game number generated.
+    event VerifiedGameNumber(uint256 vrf, uint256 gameNumber, uint256 gameId);
+
+    /// @notice Event emitted when gembites proxy set.
+    event GembitesProxySet(address newProxyAddress);
 
     IUnifiedLiquidityPool public ULP;
     IERC20 public GBTS;
-    IAggregator public LinkUSDT;
-    IAggregator public GBTSUSDT;
+    IGembitesProxy public GembitesProxy;
 
     uint256 constant RTP = 98;
-    uint256 constant gameId = 3;
+    uint256 public gameId;
 
     uint256 public betGBTS;
     uint256 public paidGBTS;
@@ -35,35 +51,23 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
     mapping(address => BetInfo) private betInfos;
 
-    /// @notice Event emitted only on construction.
-    event RockPaperScissorsDeployed();
-
-    /// @notice Event emitted when player start the betting.
-    event BetStarted(address indexed player, uint256 number, uint256 amount);
-
-    /// @notice Event emitted when player finish the betting.
-    event BetFinished(address indexed player, string result);
-
-    /// @notice Event emitted when game number generated.
-    event VerifiedGameNumber(uint256 vrf, uint256 gameNumber, uint256 gameId);
-
     /**
      * @dev Constructor function
      * @param _ULP Interface of ULP
      * @param _GBTS Interface of GBTS
-     * @param _GBTSUSDT Interface of GBTS Token USDT Aggregator
-     * @param _LinkUSDT Interface of Link Token USDT Aggregator "0xd9FFdb71EbE7496cC440152d43986Aae0AB76665" Address of LINK/USD Price Contract
+     * @param _GembitesProxy Interface of GembitesProxy
+     * @param _gameId Id of Game
      */
     constructor(
         IUnifiedLiquidityPool _ULP,
         IERC20 _GBTS,
-        IAggregator _GBTSUSDT,
-        IAggregator _LinkUSDT
+        IGembitesProxy _GembitesProxy,
+        uint256 _gameId
     ) {
         ULP = _ULP;
         GBTS = _GBTS;
-        GBTSUSDT = _GBTSUSDT;
-        LinkUSDT = _LinkUSDT;
+        GembitesProxy = _GembitesProxy;
+        gameId = _gameId;
 
         emit RockPaperScissorsDeployed();
     }
@@ -156,21 +160,8 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Public function for returns min bet amount with current Link and GBTS token price.
-     */
-    function minBetAmount() public view returns (uint256) {
-        int256 GBTSPrice;
-        int256 LinkPrice;
-
-        (, GBTSPrice, , , ) = GBTSUSDT.latestRoundData();
-        (, LinkPrice, , , ) = LinkUSDT.latestRoundData();
-
-        return (uint256(LinkPrice) * 53) / (uint256(GBTSPrice) * vrfCost);
-    }
-
-    /**
      * @dev Internal function to check current bet amount is enough to bet.
-     * @param _winnings Amount of GBTS if user wins.
+     * @param _winnings Amount of GBTS user received if he wins.
      * @param _betAmount Bet Amount
      */
     function checkBetAmount(uint256 _winnings, uint256 _betAmount)
@@ -179,6 +170,20 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
         returns (bool)
     {
         return (GBTS.balanceOf(address(ULP)) / 100 >= _winnings &&
-            _betAmount >= minBetAmount());
+            _betAmount >= GembitesProxy.getMinBetAmount());
+    }
+
+    /**
+     * @dev External function to set gembites proxy. This function can be called by only owner.
+     * @param _newProxyAddress New Gembites Proxy Address
+     */
+    function setGembitesProxy(address _newProxyAddress) external onlyOwner {
+        require(
+            _newProxyAddress.isContract() == true,
+            "CoinFlip: Address is not contract address"
+        );
+        GembitesProxy = IGembitesProxy(_newProxyAddress);
+
+        emit GembitesProxySet(_newProxyAddress);
     }
 }
