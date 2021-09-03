@@ -119,7 +119,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
         GBTS.safeTransferFrom(msg.sender, address(ULP), _amount);
 
-         bytes32 requestId = RNG.requestRandomNumber();
+        bytes32 requestId = RNG.requestRandomNumber();
 
         requestToBet[requestId] = BetInfo(
             msg.sender,
