@@ -64,7 +64,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     modifier onlyRNG() {
         require(
             msg.sender == address(RNG),
-            "DiceRoll: Caller is not the RandomNumberGenerator"
+            "RockPaperScissors: Caller is not the RandomNumberGenerator"
         );
         _;
     }
