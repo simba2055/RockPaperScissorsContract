@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "./interfaces/IUnifiedLiquidityPool.sol";
 import "./interfaces/IGembitesProxy.sol";
+import "./interfaces/IRandomNumberGenerator.sol";
 
 /**
  * @title Rock Paper Scissors Contract
@@ -16,57 +17,74 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address;
 
-    /// @notice Event emitted only on construction.
-    event RockPaperScissorsDeployed();
-
-    /// @notice Event emitted when player start the betting.
-    event BetStarted(address indexed player, uint256 number, uint256 amount);
-
-    /// @notice Event emitted when player finish the betting.
-    event BetFinished(address indexed player, string result);
-
-    /// @notice Event emitted when game number generated.
-    event VerifiedGameNumber(uint256 vrf, uint256 gameNumber, uint256 gameId);
-
     /// @notice Event emitted when gembites proxy set.
     event GembitesProxySet(address newProxyAddress);
+
+    /// @notice Event emitted when contract is deployed.
+    event RockPaperScissorsDeployed();
+
+    /// @notice Event emitted when bet is started.
+    event BetStarted(
+        address player,
+        uint256 multiplier,
+        uint256 number,
+        uint256 amount
+    );
+
+    /// @notice Event emitted when bet is finished.
+    event BetFinished(
+        address player,
+        uint256 paidAmount,
+        uint256 betResult, // 0: Draw, 1: Win, 2: Loss
+        BetInfo betInfo
+    );
 
     IUnifiedLiquidityPool public ULP;
     IERC20 public GBTS;
     IGembitesProxy public GembitesProxy;
-
-    uint256 constant RTP = 98;
-    uint256 public gameId;
+    IRandomNumberGenerator public RNG;
 
     uint256 public betGBTS;
     uint256 public paidGBTS;
 
-    uint256 public vrfCost = 10000; // 0.0001 Link
+    uint256 public gameId;
 
     struct BetInfo {
+        address player;
         uint256 number;
         uint256 amount;
+        uint256 multiplier;
+        uint256 expectedWinAmount;
         bytes32 requestId;
+        uint256 gameNumber;
     }
 
-    mapping(address => BetInfo) private betInfos;
+    mapping(bytes32 => BetInfo) public requestToBet;
+
+    modifier onlyRNG() {
+        require(
+            msg.sender == address(RNG),
+            "DiceRoll: Caller is not the RandomNumberGenerator"
+        );
+        _;
+    }
 
     /**
      * @dev Constructor function
      * @param _ULP Interface of ULP
      * @param _GBTS Interface of GBTS
-     * @param _GembitesProxy Interface of GembitesProxy
-     * @param _gameId Id of Game
+     * @param _RNG Interface of RandomNumberGenerator
+     * @param _gameId Game Id
      */
     constructor(
         IUnifiedLiquidityPool _ULP,
         IERC20 _GBTS,
-        IGembitesProxy _GembitesProxy,
+        IRandomNumberGenerator _RNG,
         uint256 _gameId
     ) {
         ULP = _ULP;
         GBTS = _GBTS;
-        GembitesProxy = _GembitesProxy;
+        RNG = _RNG;
         gameId = _gameId;
 
         emit RockPaperScissorsDeployed();
@@ -78,57 +96,62 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
      * @param _amount Amount of player betted.
      */
     function bet(uint256 _number, uint256 _amount) external {
-        require(
-            betInfos[msg.sender].amount == 0,
-            "RockPaperScissors: Already betted"
-        );
+        uint256 expectedWinAmount;
+        uint256 multiplier;
+        uint256 minBetAmount;
+        uint256 maxWinAmount;
+
+        minBetAmount = GembitesProxy.getMinBetAmount();
+        maxWinAmount = GBTS.balanceOf(address(ULP)) / 100;
+
         require(
             0 <= _number && _number < 3,
             "RockPaperScissors: Number out of range"
         );
-        require(
-            GBTS.balanceOf(msg.sender) >= _amount,
-            "RockPaperScissors: Caller has not enough balance"
-        );
 
-        uint256 multiplier = 244;
-        uint256 winnings = (_amount * multiplier) / 100;
+        multiplier = 244;
+        expectedWinAmount = (multiplier * _amount) / 1000;
 
         require(
-            checkBetAmount(winnings, _amount),
-            "RockPaperScissors: Bet amount is out of range"
+            _amount >= minBetAmount && expectedWinAmount <= maxWinAmount,
+            "RockPaperScissors: Expected paid amount is out of range"
         );
 
         GBTS.safeTransferFrom(msg.sender, address(ULP), _amount);
 
-        betInfos[msg.sender].number = _number;
-        betInfos[msg.sender].amount = _amount;
-        betInfos[msg.sender].requestId = ULP.requestRandomNumber();
+         bytes32 requestId = RNG.requestRandomNumber();
+
+        requestToBet[requestId] = BetInfo(
+            msg.sender,
+            _number,
+            _amount,
+            multiplier,
+            expectedWinAmount,
+            requestId,
+            0
+        );
+
         betGBTS += _amount;
 
-        emit BetStarted(msg.sender, _number, _amount);
+        emit BetStarted(msg.sender, multiplier, _number, _amount);
     }
 
     /**
-     * @dev External function for calculate betting win or lose.
+     * @dev External function for playing. This function can be called by only RandomNumberGenerator.
+     * @param _requestId Request Id
+     * @param _randomness Random Number
      */
-    function play() external nonReentrant {
-        require(
-            betInfos[msg.sender].amount != 0,
-            "RockPaperScissors: Cannot play without betting"
-        );
+    function play(bytes32 _requestId, uint256 _randomness) external onlyRNG {
+        BetInfo storage betInfo = requestToBet[_requestId];
 
-        uint256 randomNumber = ULP.getVerifiedRandomNumber(
-            betInfos[msg.sender].requestId
-        );
+        address player = betInfo.player;
+        uint256 expectedWinAmount = betInfo.expectedWinAmount;
 
         uint256 gameNumber = uint256(
-            keccak256(abi.encode(randomNumber, address(msg.sender), gameId))
+            keccak256(abi.encode(_randomness, player, gameId))
         ) % 3; // 0: Rock, 1: Paper, 2: Scissors
 
-        emit VerifiedGameNumber(randomNumber, gameNumber, gameId);
-
-        BetInfo storage betInfo = betInfos[msg.sender];
+        betInfo.gameNumber = gameNumber;
 
         if (gameNumber == betInfo.number) {
             //Draw
@@ -138,39 +161,21 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
             paidGBTS += amountToSend;
 
-            emit BetFinished(msg.sender, "Draw");
+            emit BetFinished(msg.sender, amountToSend, 0, betInfo);
         } else if (
             (gameNumber == 0 && betInfo.number == 1) ||
             (gameNumber == 1 && betInfo.number == 2) ||
             (gameNumber == 2 && betInfo.number == 0)
         ) {
-            //Win
-            uint256 amountToSend = (betInfo.amount * 244) / 100;
+            ULP.sendPrize(msg.sender, expectedWinAmount);
 
-            ULP.sendPrize(msg.sender, amountToSend);
+            paidGBTS += expectedWinAmount;
 
-            paidGBTS += amountToSend;
-
-            emit BetFinished(msg.sender, "Win");
+            emit BetFinished(msg.sender, expectedWinAmount, 1, betInfo);
         } else {
             //Lose
-            emit BetFinished(msg.sender, "Lose");
+            emit BetFinished(msg.sender, 0, 2, betInfo);
         }
-        betInfo.amount = 0;
-    }
-
-    /**
-     * @dev Internal function to check current bet amount is enough to bet.
-     * @param _winnings Amount of GBTS user received if he wins.
-     * @param _betAmount Bet Amount
-     */
-    function checkBetAmount(uint256 _winnings, uint256 _betAmount)
-        internal
-        view
-        returns (bool)
-    {
-        return (GBTS.balanceOf(address(ULP)) / 100 >= _winnings &&
-            _betAmount >= GembitesProxy.getMinBetAmount());
     }
 
     /**
@@ -180,7 +185,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     function setGembitesProxy(address _newProxyAddress) external onlyOwner {
         require(
             _newProxyAddress.isContract() == true,
-            "CoinFlip: Address is not contract address"
+            "RockPaperScissors: Address is not contract address"
         );
         GembitesProxy = IGembitesProxy(_newProxyAddress);
 
