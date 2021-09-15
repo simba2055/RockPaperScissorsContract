@@ -47,8 +47,6 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
     uint256 public betGBTS;
     uint256 public paidGBTS;
 
-    uint256 public gameId;
-
     struct BetInfo {
         address player;
         uint256 number;
@@ -74,18 +72,15 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
      * @param _ULP Interface of ULP
      * @param _GBTS Interface of GBTS
      * @param _RNG Interface of RandomNumberGenerator
-     * @param _gameId Game Id
      */
     constructor(
         IUnifiedLiquidityPool _ULP,
         IERC20 _GBTS,
-        IRandomNumberGenerator _RNG,
-        uint256 _gameId
+        IRandomNumberGenerator _RNG
     ) {
         ULP = _ULP;
         GBTS = _GBTS;
         RNG = _RNG;
-        gameId = _gameId;
 
         emit RockPaperScissorsDeployed();
     }
@@ -110,7 +105,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
         );
 
         multiplier = 244;
-        expectedWinAmount = (multiplier * _amount) / 1000;
+        expectedWinAmount = (multiplier * _amount) / 100;
 
         require(
             _amount >= minBetAmount && expectedWinAmount <= maxWinAmount,
@@ -147,34 +142,30 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
         address player = betInfo.player;
         uint256 expectedWinAmount = betInfo.expectedWinAmount;
 
-        uint256 gameNumber = uint256(
-            keccak256(abi.encode(_randomness, player, gameId))
-        ) % 3; // 0: Rock, 1: Paper, 2: Scissors
+        betInfo.gameNumber = _randomness % 3;
 
-        betInfo.gameNumber = gameNumber;
-
-        if (gameNumber == betInfo.number) {
+        if (betInfo.gameNumber == betInfo.number) {
             //Draw
             uint256 amountToSend = betInfo.amount / 2;
 
-            ULP.sendPrize(msg.sender, amountToSend);
+            ULP.sendPrize(player, amountToSend);
 
             paidGBTS += amountToSend;
 
-            emit BetFinished(msg.sender, amountToSend, 0, betInfo);
+            emit BetFinished(player, amountToSend, 0, betInfo);
         } else if (
-            (gameNumber == 0 && betInfo.number == 1) ||
-            (gameNumber == 1 && betInfo.number == 2) ||
-            (gameNumber == 2 && betInfo.number == 0)
+            (betInfo.gameNumber == 0 && betInfo.number == 1) ||
+            (betInfo.gameNumber == 1 && betInfo.number == 2) ||
+            (betInfo.gameNumber == 2 && betInfo.number == 0)
         ) {
-            ULP.sendPrize(msg.sender, expectedWinAmount);
+            ULP.sendPrize(player, expectedWinAmount);
 
             paidGBTS += expectedWinAmount;
 
-            emit BetFinished(msg.sender, expectedWinAmount, 1, betInfo);
+            emit BetFinished(player, expectedWinAmount, 1, betInfo);
         } else {
             //Lose
-            emit BetFinished(msg.sender, 0, 2, betInfo);
+            emit BetFinished(player, 0, 2, betInfo);
         }
     }
 
