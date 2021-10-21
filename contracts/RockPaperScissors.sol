@@ -28,7 +28,8 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
         address player,
         uint256 multiplier,
         uint256 number,
-        uint256 amount
+        uint256 amount,
+        bytes32 requestId
     );
 
     /// @notice Event emitted when bet is finished.
@@ -128,7 +129,7 @@ contract RockPaperScissors is Ownable, ReentrancyGuard {
 
         betGBTS += _amount;
 
-        emit BetStarted(msg.sender, multiplier, _number, _amount);
+        emit BetStarted(msg.sender, multiplier, _number, _amount, requestId);
     }
 
     /**
